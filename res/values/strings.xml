@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">LoRaTracker</string>
+    <string name="company_name">WISOL</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="prompt_password">Password</string>
+    <string name="prompt_userid">User ID</string>
+    <string name="action_log_in">Login</string>
+    <string name="title_activity_debug">DebugActivity</string>
+    <string name="title_activity_menu">Menu</string>
+    <string name="title_activity_message_view">MessageViewActivity</string>
+    <string name="title_activity_door_view">LoRa Door</string>
+    <string name="title_activity_map">MapActivity</string>
+    <string name="google_maps_key" templateMergeStrategy="preserve" translatable="false">        AIzaSyA4p8MfWAu5ldWZzSGVAnV81T9Vsk1gh7A</string>
+    <string name="title_activity_sel_gateway">SelGatewayActivity</string>
+    <string name="title_activity_firebase_test">FirebaseTestActivity</string>
+    <string name="title_activity_gps_main">GpsMainActivity</string>
+
+</resources>

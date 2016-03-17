@@ -1,0 +1,48 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="${relativePackage}.${activityClass}" >
+
+    <LinearLayout
+        android:id="@+id/ll_last_info"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#df0000"
+        android:orientation="vertical" >
+
+        <TextView
+            android:id="@+id/msg_last_msg"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:autoLink="all"
+            android:paddingBottom="3dp"
+            android:paddingTop="3dp"
+            android:text="Message"
+            android:textColor="#1a1a1a"
+            android:textSize="20dp" />
+
+        <TextView
+            android:id="@+id/msg_last_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="3dp"
+            android:paddingTop="3dp"
+            android:text="date"
+            android:textColor="#f0f0f0"
+            android:textSize="15dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/ll_last_info" >
+
+        <ListView
+            android:id="@+id/msg_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" >
+        </ListView>
+    </LinearLayout>
+
+</RelativeLayout>
