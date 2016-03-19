@@ -1,11 +1,14 @@
 package wisol.demo.loragpstracker.activity;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -18,6 +21,8 @@ import wisol.demo.loragpstracker.TestService;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -40,8 +45,23 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		this.requestWindowFeature(Window.FEATURE_NO_TITLE);//It must be located prior to the setContentView
+		this.requestWindowFeature(Window.FEATURE_NO_TITLE);// It must be located
+															// prior to the
+															// setContentView
 		setContentView(R.layout.layout_activity_main);
+		startActivityDelayed(new Intent(this, GpsMainActivity.class), 2000);
+	}
+
+	private void startActivityDelayed(Intent pIntent, long pTimeDelay) {
+		final Intent intent = pIntent;
+
+		new Timer().schedule(new TimerTask() {
+
+			@Override
+			public void run() {
+				startActivity(intent);
+			}
+		}, pTimeDelay);
 	}
 
 	@Override
@@ -57,21 +77,9 @@ public class MainActivity extends Activity {
 		startService(i);
 	}
 
-
 	@Override
 	protected void onResume() {
 		stopService(new Intent(this, TestService.class));
 		super.onResume();
 	}
-
-
-
-
-
-
-
-
-
-
-
 }

@@ -74,7 +74,7 @@
             android:label="@string/title_activity_firebase_test" >
         </activity>
         <activity
-            android:name=".GpsMainActivity"
+            android:name="wisol.demo.loragpstracker.activity.GpsMainActivity"
             android:label="@string/title_activity_gps_main" >
         </activity>
     </application>

@@ -1,10 +1,12 @@
 package wisol.demo.loragpstracker.activity;
 
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.json.JSONException;
@@ -19,12 +21,14 @@ import wisol.demo.loragpstracker.R;
 import wisol.demo.loragpstracker.TestService;
 import wisol.demo.loragpstracker.ThingPlugDevice;
 import android.content.Intent;
+import android.location.Address;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
+import android.view.Window;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -35,7 +39,11 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -53,16 +61,20 @@ import com.google.gson.reflect.TypeToken;
 
 public class MapActivity extends FragmentActivity
 		implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
-		GoogleApiClient.OnConnectionFailedListener {
+		GoogleApiClient.OnConnectionFailedListener,
+		LocationListener {
 
-	final String EXTRA_LOACTION = "locationData";
+	final String EXTRA_GPS_UPDATE = "GPS_UPDATE";
 	final String EXTRA_LATITUDE = "LATITUDE";
 	final String EXTRA_LONGITUDE = "LONGITUDE";
 
 	TextView mTvMapDebug;
+	TextView mTvDistance;
 	Handler mHandler;
 	GoogleMap mGoogleMap;
 	GoogleApiClient mGoogleApiClient;
+	private LocationRequest mLocationRequest;
+
 	LatLng mGatewayLatLng;
 	Location mGatewayLocation;
 	Marker mGatewayMarker;
@@ -78,18 +90,33 @@ public class MapActivity extends FragmentActivity
 	LoRaGpsDevice mLoRaGpsNow;
 
 	Circle mCircleMaxDistanceRange;
+	Circle mCircleNowDistanceRange;
 
 	static boolean isActivated = false;
+
+	private static int UPDATE_INTERVAL = 5000;
+	private static int FATEST_INTERVAL = 1000;
+	private static int DISPLACEMENT = 1;
+	private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 1000;
+
+	private boolean mRequestingLocationUpdates = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		this.requestWindowFeature(Window.FEATURE_NO_TITLE);
 		setContentView(R.layout.activity_map);
 
 		mTvMapDebug = (TextView) findViewById(R.id.tv_mapdebug);
+		mTvDistance = (TextView) findViewById(R.id.map_distancetext);
 
 		getExtra(savedInstanceState);
 		initDevice();
+
+		if (checkPlayServices()) {
+			buildGoogleApiClient();
+			createLocationRequest();
+		}
 
 		mGoogleApiClient = new GoogleApiClient.Builder(this)
 				.addConnectionCallbacks(this)
@@ -110,10 +137,25 @@ public class MapActivity extends FragmentActivity
 	}
 
 	@Override
+	protected void onStart() {
+		// TODO Auto-generated method stub
+		super.onStart();
+		if (mGoogleApiClient != null) {
+			mGoogleApiClient.connect();
+		}
+	}
+
+	@Override
 	protected void onResume() {
 		// TODO Auto-generated method stub
 		stopService(new Intent(this, TestService.class));
 		super.onResume();
+
+		checkPlayServices();
+		if (mGoogleApiClient.isConnected() && mRequestingLocationUpdates) {
+			startLocationUpdates();
+		}
+
 		isActivated = true;
 	}
 
@@ -126,7 +168,9 @@ public class MapActivity extends FragmentActivity
 	@Override
 	protected void onPause() {
 		// TODO Auto-generated method stub
+		stopLocationUpdates();
 		launchTestService();
+		isActivated = false;
 		super.onPause();
 	}
 
@@ -135,6 +179,10 @@ public class MapActivity extends FragmentActivity
 		// TODO Auto-generated method stub
 		isActivated = false;
 		super.onStop();
+
+		if (mGoogleApiClient.isConnected()) {
+			mGoogleApiClient.disconnect();
+		}
 	}
 
 	static public class WeakHandler extends Handler {
@@ -161,6 +209,60 @@ public class MapActivity extends FragmentActivity
 		THING_REQ_URI = mapDevice.getUrlContenInstancesDetailed(0, 1).toString();
 
 		mLoRaGpsDevices = new ArrayList<MapActivity.LoRaGpsDevice>();
+	}
+
+	/**
+	 * Creating location request object
+	 * */
+	protected void createLocationRequest() {
+		mLocationRequest = new LocationRequest();
+		mLocationRequest.setInterval(UPDATE_INTERVAL);
+		mLocationRequest.setFastestInterval(FATEST_INTERVAL);
+		mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+		mLocationRequest.setSmallestDisplacement(DISPLACEMENT); // 10 meters
+	}
+
+	protected synchronized void buildGoogleApiClient() {
+		mGoogleApiClient = new GoogleApiClient.Builder(this)
+				.addConnectionCallbacks(this)
+				.addOnConnectionFailedListener(this)
+				.addApi(LocationServices.API).build();
+	}
+
+	/**
+	 * Starting the location updates
+	 * */
+	protected void startLocationUpdates() {
+
+		LocationServices.FusedLocationApi.requestLocationUpdates(
+				mGoogleApiClient, mLocationRequest, this);
+
+	}
+
+	/**
+	 * Stopping location updates
+	 */
+	protected void stopLocationUpdates() {
+		LocationServices.FusedLocationApi.removeLocationUpdates(
+				mGoogleApiClient, this);
+	}
+
+	private boolean checkPlayServices() {
+		int resultCode = GooglePlayServicesUtil
+				.isGooglePlayServicesAvailable(this);
+		if (resultCode != ConnectionResult.SUCCESS) {
+			if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
+				GooglePlayServicesUtil.getErrorDialog(resultCode, this,
+						PLAY_SERVICES_RESOLUTION_REQUEST).show();
+			} else {
+				Toast.makeText(getApplicationContext(),
+						"This device is not supported.", Toast.LENGTH_LONG)
+						.show();
+				finish();
+			}
+			return false;
+		}
+		return true;
 	}
 
 	private JsonResponseContentInstanceDetailedLastOne toJsonResponse(JSONObject pJsonObject) {
@@ -215,13 +317,15 @@ public class MapActivity extends FragmentActivity
 		}
 
 		if (mMarkerDeviceNow == null) {
+			float distanceMeter = getDistanceFromGateway(mLoRaGpsNow);
 			mMarkerDeviceNow = mGoogleMap.addMarker(new MarkerOptions()
 					.position(mLoRaGpsNow.getLatLng())
 					.draggable(false)
 					.title(mLoRaGpsNow.getCreationDate().toString())
-					.snippet("Distance:" + String.valueOf(getDistanceFromGateway(mLoRaGpsNow)) + "m")
+					.snippet("Distance:" + String.valueOf(distanceMeter + "m"))
 					.icon(BitmapDescriptorFactory.fromResource(R.drawable.mk_circle))
 					.flat(true));
+			updateDistanceDisplay(distanceMeter);
 		} else {
 			mMarkerDeviceNow.setPosition(mLoRaGpsNow.getLatLng());
 			mMarkerDeviceNow.setTitle(mLoRaGpsNow.getCreationDate().toString());
@@ -234,7 +338,7 @@ public class MapActivity extends FragmentActivity
 		boolean result = false;
 		double latitude = 0, longitude = 0;
 
-		String[] geoString = pJsonContentInstanceDetail.getContent().split(",");
+		String[] geoString = pJsonContentInstanceDetail.getContent().split("@");
 		Date creationDate = pJsonContentInstanceDetail.getCreationTime();
 
 		if ((geoString.length == 2) && (creationDate != null)) {
@@ -247,7 +351,7 @@ public class MapActivity extends FragmentActivity
 				longitude = Double
 						.valueOf(geoString[1].replace(doublePtnString, ""));
 
-				mLoRaGpsNow = new LoRaGpsDevice()
+				mLoRaGpsNow = new LoRaGpsDevice("LoRa GPS divice")
 						.setLatLng(new LatLng(latitude, longitude))
 						.setCreationDate(creationDate);
 
@@ -316,55 +420,16 @@ public class MapActivity extends FragmentActivity
 		return resultMeter;
 	}
 
-	private boolean addDeviceLocation(JsonContentInstanceDetail pJsonContentInstanceDetail) {
-		boolean result = false;
-		double latitude = 0, longitude = 0;
-		String[] geoString = pJsonContentInstanceDetail.getContent().split(",");
-		Date creationDate = pJsonContentInstanceDetail.getCreationTime();
-
-		if ((geoString.length == 2) && (creationDate != null)) {
-			result = true;
-			String doublePtnString = "^[\\+\\-]{0,1}[0-9]+[\\.\\,]{1}[0-9]+$";
-
-			if (mLoRaGpsDevices.size() > 0) {
-				if (creationDate.after(mLoRaGpsDevices.get(0).getCreationDate())) {
-					try {
-						latitude = Double
-								.valueOf(geoString[0].replace(doublePtnString, ""));
-						longitude = Double
-								.valueOf(geoString[1].replace(doublePtnString, ""));
-
-						this.mLoRaGpsDevices.add(new LoRaGpsDevice()
-								.setLatLng(new LatLng(latitude, longitude))
-								.setCreationDate(creationDate));
-					} catch (Exception e) {
-						result = false;
-						e.printStackTrace();
-					}
-				}
-			} else {
-				try {
-					latitude = Double
-							.valueOf(geoString[0].replace(doublePtnString, ""));
-					longitude = Double
-							.valueOf(geoString[1].replace(doublePtnString, ""));
-					this.mLoRaGpsDevices.add(new LoRaGpsDevice()
-							.setLatLng(new LatLng(latitude, longitude))
-							.setCreationDate(creationDate));
-				} catch (Exception e) {
-					result = false;
-					e.printStackTrace();
-				}
-			}
-
+	private void updateDistanceDisplay(float pResultMeter) {
+		String pDistanceStr = "";
+		if (pResultMeter < 1000) {// display by unit m
+			pDistanceStr = String.valueOf(pResultMeter) + "m";
+		} else {// display by unit km
+			pDistanceStr = String.format("%.2f", pResultMeter / 1000.0f) + "km";
 		}
-
-		this.mTvMapDebug.setText("RoLaDeviceLoc:" + pJsonContentInstanceDetail.getContent() + ":"
-				+ ":" +
-				String.valueOf(latitude) + "," + String.valueOf(longitude));
-
-		return result;
+		mTvDistance.setText(String.valueOf(pDistanceStr));
 	}
+
 
 	private synchronized void getThingPlugDeviceContent() {
 		if (mapDevice == null) {
@@ -414,18 +479,40 @@ public class MapActivity extends FragmentActivity
 	}
 
 	private void getExtra(Bundle pBundle) {
+		mRequestingLocationUpdates = getIntent().getBooleanExtra(EXTRA_GPS_UPDATE, false);
 		String latitude = getIntent().getStringExtra(EXTRA_LATITUDE);
 		String longitude = getIntent().getStringExtra(EXTRA_LONGITUDE);
 		double doubleLatitude = Double.valueOf(latitude);
 		double doubleLongitude = Double.valueOf(longitude);
 
-		mGatewayLatLng = new LatLng(doubleLatitude, doubleLongitude);
-		mGatewayLocation = new Location("Gateway");
-		mGatewayLocation.setLatitude(doubleLatitude);
-		mGatewayLocation.setLongitude(doubleLongitude);
-
-		mTvMapDebug.setText("Gateway Location:" + latitude + "," + longitude);
+		if (mGatewayLatLng == null) {
+			mGatewayLatLng = new LatLng(doubleLatitude, doubleLongitude);
+			mGatewayLocation = new Location("You");
+			mGatewayLocation.setLatitude(doubleLatitude);
+			mGatewayLocation.setLongitude(doubleLongitude);
+		}
 	}
+
+	private void upDateGpsLocation() {
+		mGatewayLocation = LocationServices.FusedLocationApi
+				.getLastLocation(mGoogleApiClient);
+
+		mGatewayLatLng = new LatLng(mGatewayLocation.getLatitude(), mGatewayLocation.getLongitude());
+
+//		mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mGatewayLatLng, 17));
+		if(mGatewayMarker!=null){
+			mGatewayMarker.setPosition(mGatewayLatLng);
+			mGatewayMarker.setSnippet(mGatewayLatLng.toString());
+		}
+
+		if (mLoRaGpsNow != null) {
+			updateDistanceDisplay(getDistanceFromGateway(mLoRaGpsNow));
+			updateMaxDistanceCircle();
+		}
+
+	}
+	
+	
 
 	@Override
 	public void onMapReady(GoogleMap pGoogleMap) {
@@ -436,7 +523,7 @@ public class MapActivity extends FragmentActivity
 		mGatewayMarker = mGoogleMap.addMarker(new MarkerOptions()
 				.position(mGatewayLatLng)
 				.draggable(false)
-				.title("Gateway")
+				.title("You")
 				.snippet(mGatewayLatLng.toString())
 				.icon(BitmapDescriptorFactory.fromResource(R.drawable.mk_blue))
 				.flat(true));
@@ -447,11 +534,16 @@ public class MapActivity extends FragmentActivity
 	@Override
 	public void onConnected(Bundle pBundle) {
 		Toast.makeText(this, "onConnected", Toast.LENGTH_SHORT).show();
+		upDateGpsLocation();
+		if (mRequestingLocationUpdates) {
+			startLocationUpdates();
+		}
 	}
 
 	@Override
 	public void onConnectionSuspended(int arg0) {
 		Toast.makeText(this, "onConnectionSuspended", Toast.LENGTH_SHORT).show();
+		mGoogleApiClient.connect();
 
 	}
 
@@ -464,13 +556,19 @@ public class MapActivity extends FragmentActivity
 	public class LoRaGpsDevice implements Cloneable {
 		private LatLng mLatLng = null;
 		private Date creationDate;
+		private Location myLocation = null;
 
-		public LoRaGpsDevice() {
-
+		public LoRaGpsDevice(String pLocationName) {
+			myLocation = new Location(pLocationName);
 		}
 
 		public LoRaGpsDevice setLatLng(LatLng pLatLng) {
 			mLatLng = pLatLng;
+			if (myLocation != null) {
+				myLocation.setLatitude(mLatLng.latitude);
+				myLocation.setLongitude(mLatLng.longitude);
+			}
+
 			return this;
 		}
 
@@ -487,6 +585,10 @@ public class MapActivity extends FragmentActivity
 			return this.creationDate;
 		}
 
+		public Location getLocation() {
+			return myLocation;
+		}
+
 		@Override
 		protected LoRaGpsDevice clone() throws CloneNotSupportedException {
 			LoRaGpsDevice pLoraDevice = (LoRaGpsDevice) super.clone();
@@ -495,6 +597,13 @@ public class MapActivity extends FragmentActivity
 
 			return pLoraDevice;
 		}
+	}
+
+	@Override
+	public void onLocationChanged(Location arg0) {
+		// TODO Auto-generated method stub
+		upDateGpsLocation();
+
 	}
 
 }
