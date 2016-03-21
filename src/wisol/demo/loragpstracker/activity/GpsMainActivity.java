@@ -248,7 +248,7 @@ public class GpsMainActivity extends Activity
 		boolean result = false;
 		double latitude = 0, longitude = 0;
 
-		String[] geoString = pJsonContentInstanceDetail.getContent().split("@");
+		String[] geoString = pJsonContentInstanceDetail.getContent().split(",");
 		Date creationDate = pJsonContentInstanceDetail.getCreationTime();
 
 		if ((geoString.length == 2) && (creationDate != null)) {
