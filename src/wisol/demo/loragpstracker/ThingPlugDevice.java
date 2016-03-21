@@ -5,6 +5,8 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.android.volley.Request;
+
 import android.util.Base64;
 import android.util.Log;
 
@@ -185,6 +187,35 @@ public class ThingPlugDevice {
 							+ "/containers/contCollection/contentInstances/detailed?" +
 							getXmlBodyString(pBodyMap)
 					);
+
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		}
+
+		return result;
+	}
+
+	public URL getUrlGwDeviceReset(int pReqMethod) {
+		URL result = null;
+		try {
+
+			if (pReqMethod == Request.Method.PUT) {
+				result = new URL(this.getProtocol(), this.getHost(), this.getHostPort(),
+						"ThingPlug/scls/" +
+								this.getSclId() +
+								"/attachedDevices/" +
+								this.getDeviceId() +
+								"/mgmtObjs/mgmtReset/resetAction"
+						);
+			} else {
+				result = new URL(this.getProtocol(), this.getHost(), this.getHostPort(),
+						"ThingPlug/scls/" +
+								this.getSclId() +
+								"/attachedDevices/" +
+								this.getDeviceId() +
+								"/mgmtObjs/mgmtReset"
+						);
+			}
 
 		} catch (MalformedURLException e) {
 			e.printStackTrace();

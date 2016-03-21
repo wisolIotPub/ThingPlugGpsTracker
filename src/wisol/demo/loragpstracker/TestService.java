@@ -12,6 +12,7 @@ import org.json.XML;
 
 import wisol.demo.loragpstracker.MyThingPlugDevices.MyDevices;
 import wisol.demo.loragpstracker.activity.DoorViewActivity;
+import wisol.demo.loragpstracker.activity.GpsMainActivity;
 import wisol.demo.loragpstracker.activity.MainActivity;
 import wisol.demo.loragpstracker.activity.MenuActivity;
 import wisol.demo.loragpstracker.activity.MessageViewActivity;
@@ -32,6 +33,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.TaskStackBuilder;
+import android.text.format.Time;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -50,13 +52,10 @@ public class TestService extends Service {
 
 	ThingPlugDevice mapDevice;
 
-	// Date mCreationTimePreMap;
-	ArrayList<ThingPlugDevice> mThingPlugDevices;
-	// ArrayList<Date> mPreCreationTimeArray;
-	Map<String, Date> mPreCreationDateMap;
+	Date mCreationTimePreMap;
+	Date mServiceStartingDate;
 	int mNewDataCount = 0;
 	String preUpdatedDeviceName = "";
-	int checkDeviceIndex = 0;
 
 	private final class ServiceHandler extends Handler {
 		public ServiceHandler(Looper looper) {
@@ -65,10 +64,11 @@ public class TestService extends Service {
 
 		@Override
 		public void handleMessage(Message msg) {
-			this.sendEmptyMessageDelayed(0, 2000);
 			if (isNetworkConnected()) {
-				checkNewData(mThingPlugDevices.get(checkDeviceIndex));
-				checkDeviceIndex = checkDeviceIndex < mThingPlugDevices.size() - 1 ? checkDeviceIndex + 1 : 0;
+				checkNewData(mapDevice);
+				this.sendEmptyMessageDelayed(0, 10000);
+			}else{
+				this.sendEmptyMessageDelayed(0, 20000);
 			}
 		}
 	}
@@ -107,14 +107,19 @@ public class TestService extends Service {
 
 		if (response.getCurrentNrOfInstances() != 0) {
 			Date pCreationTime = response.getContentInstanceDetail().getCreationTime();
-			if (mPreCreationDateMap.containsKey(kName)) {
-				if (pCreationTime.after(mPreCreationDateMap.get(kName))) {
-					initNotification(response.getContentInstanceDetail(), kName);
-					mPreCreationDateMap.put(kName, pCreationTime);
+
+			if (mCreationTimePreMap == null) {
+				if (pCreationTime.after(mServiceStartingDate)) {
+					initNotification(response.getContentInstanceDetail());
+					mCreationTimePreMap = pCreationTime;
 				}
 			} else {
-				mPreCreationDateMap.put(kName, pCreationTime);
+				if (pCreationTime.after(mCreationTimePreMap)) {
+					initNotification(response.getContentInstanceDetail());
+					mCreationTimePreMap = pCreationTime;
+				}
 			}
+
 		}
 	}
 
@@ -142,8 +147,8 @@ public class TestService extends Service {
 
 					@Override
 					public void onErrorResponse(VolleyError error) {
-						Toast.makeText(getApplicationContext(), ":Error occured",
-								Toast.LENGTH_SHORT).show();
+//						Toast.makeText(getApplicationContext(), ":Error occured",
+//								Toast.LENGTH_SHORT).show();
 					}
 				}) {
 
@@ -168,72 +173,31 @@ public class TestService extends Service {
 
 		mServiceHandler = new ServiceHandler(mHandlerThread.getLooper());
 
+		mServiceStartingDate = new Date();
+
 		initDevice();
 	}
 
 	private void initDevice() {
 		MyThingPlugDevices myThingPlugDevices = MyThingPlugDevices.getInstance();
+		// mPreCreationDateMap = new HashMap<String, Date>();
 
-		mThingPlugDevices = new ArrayList<ThingPlugDevice>();
-		// mPreCreationTimeArray = new ArrayList<Date>();
-		mPreCreationDateMap = new HashMap<String, Date>();
-
-		final ArrayList<MyDevices> registeredMyDevices = myThingPlugDevices.getRegisteredMyDeviceList();
-
-		for (MyDevices myDevice : registeredMyDevices) {
-			// mPreCreationTimeArray.add(null);
-			// Log.v("mydevice", myDevice.toString());
-
-			mThingPlugDevices.add(new ThingPlugDevice(
-					myThingPlugDevices.getServiceName(myDevice),
-					myThingPlugDevices.getSclId(myDevice),
-					myThingPlugDevices.getDeviceId(myDevice),
-					myThingPlugDevices.getAuthId(myDevice),
-					myThingPlugDevices.getAuthKey(myDevice))
-					.setTag(myDevice.name())
-					.registerDevice(true));
-		}
+		mapDevice = new ThingPlugDevice(
+				myThingPlugDevices.getServiceName(MyDevices.MAP),
+				myThingPlugDevices.getSclId(MyDevices.MAP),
+				myThingPlugDevices.getDeviceId(MyDevices.MAP),
+				myThingPlugDevices.getAuthId(MyDevices.MAP),
+				myThingPlugDevices.getAuthKey(MyDevices.MAP))
+				.setTag("MAP")
+				.registerDevice(true);
 	}
 
-	private void initNotification(JsonContentInstanceDetail pJsonContentInstanceDetail, String pMyDeviceName) {
-		String pDeviceNameStr = pMyDeviceName.replaceAll("\\d", "");
-		if (!preUpdatedDeviceName.equals(pDeviceNameStr)) {
-			mNewDataCount++;
-		}
-		preUpdatedDeviceName = pDeviceNameStr;
+	private void initNotification(JsonContentInstanceDetail pJsonContentInstanceDetail) {
 
-		String pTitle = "LoRa ThingPlug";
+		String pTitle = "WISOL RoLa GPS Tracker";
 		String pContentText = "";
-		Intent resultIntent = new Intent(getApplicationContext(), MenuActivity.class);
-
-		if (mNewDataCount > 1) {
-			pContentText = "New data updated on server";
-		} else {
-			switch (MyDevices.valueOf(pMyDeviceName)) {
-			case MESSAGE:
-				if (pJsonContentInstanceDetail.getContent().length() > 5) {
-					pContentText = "New message:" + pJsonContentInstanceDetail.getContent().subSequence(0, 5);
-				} else {
-					pContentText = "New message:" + pJsonContentInstanceDetail.getContent();
-				}
-				resultIntent = new Intent(getApplicationContext(), MessageViewActivity.class);
-				break;
-			case DOOR1:
-			case DOOR2:
-			case DOOR3:
-				pContentText = pMyDeviceName + " : " + pJsonContentInstanceDetail.getContent();
-				resultIntent = new Intent(getApplicationContext(), DoorViewActivity.class);
-				break;
-			case MAP:
-				pContentText = "Location is updated";
-				resultIntent = new Intent(getApplicationContext(), SelGatewayActivity.class);
-				break;
-			case GATEWAY:
-				pContentText = "Gateway location is updated";
-				resultIntent = new Intent(getApplicationContext(), SelGatewayActivity.class);
-				break;
-			}
-		}
+		Intent resultIntent = new Intent(getApplicationContext(), GpsMainActivity.class);
+		pContentText = "Location is updated@" + pJsonContentInstanceDetail.getCreationTimeString();
 
 		NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(getApplicationContext())
 				.setSmallIcon(R.drawable.ic_launcher)
@@ -296,7 +260,7 @@ public class TestService extends Service {
 	public int onStartCommand(Intent intent, int flags, int startId) {
 
 		mServiceHandler.sendEmptyMessageDelayed(0, 10000);
-//		appAdTest();
+		// appAdTest();
 
 		return START_STICKY;
 	}

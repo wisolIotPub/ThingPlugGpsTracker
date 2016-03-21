@@ -2677,7 +2677,6 @@ containing a value of this type.
         public static final int icon_only=0x7f09000a;
         public static final int ifRoom=0x7f090042;
         public static final int image=0x7f09004d;
-        public static final int imageButton1=0x7f090087;
         public static final int info=0x7f0900aa;
         public static final int iv_memu_msg=0x7f09009a;
         public static final int iv_menu_door=0x7f09009b;
@@ -2694,6 +2693,7 @@ containing a value of this type.
         public static final int manual_longitude=0x7f090093;
         public static final int map=0x7f090086;
         public static final int map_distancetext=0x7f090088;
+        public static final int map_sendbutton=0x7f090087;
         public static final int match_parent=0x7f09001f;
         public static final int media_actions=0x7f0900a2;
         public static final int middle=0x7f090047;

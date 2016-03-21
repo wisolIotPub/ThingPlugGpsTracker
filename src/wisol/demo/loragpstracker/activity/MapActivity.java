@@ -1,12 +1,9 @@
 package wisol.demo.loragpstracker.activity;
 
-import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.json.JSONException;
@@ -20,14 +17,16 @@ import wisol.demo.loragpstracker.MyThingPlugDevices.MyDevices;
 import wisol.demo.loragpstracker.R;
 import wisol.demo.loragpstracker.TestService;
 import wisol.demo.loragpstracker.ThingPlugDevice;
+import android.content.Context;
 import android.content.Intent;
-import android.location.Address;
 import android.location.Location;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
+import android.view.View;
 import android.view.Window;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -41,7 +40,6 @@ import com.android.volley.toolbox.Volley;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
@@ -78,26 +76,26 @@ public class MapActivity extends FragmentActivity
 	LatLng mGatewayLatLng;
 	Location mGatewayLocation;
 	Marker mGatewayMarker;
-	Marker mMarkerDeviceMax;
+	// Marker mMarkerDeviceMax;
 	Marker mMarkerDeviceNow;
 
 	ThingPlugDevice mapDevice;
 
 	String THING_AUTHORIZATION;
 	String THING_REQ_URI;
-	ArrayList<LoRaGpsDevice> mLoRaGpsDevices;
-	LoRaGpsDevice mLoRaGpsMaxDistance;
+	// ArrayList<LoRaGpsDevice> mLoRaGpsDevices;
+	// LoRaGpsDevice mLoRaGpsMaxDistance;
 	LoRaGpsDevice mLoRaGpsNow;
 
-	Circle mCircleMaxDistanceRange;
+	// Circle mCircleMaxDistanceRange;
 	Circle mCircleNowDistanceRange;
 
 	static boolean isActivated = false;
 
-	private static int UPDATE_INTERVAL = 5000;
-	private static int FATEST_INTERVAL = 1000;
-	private static int DISPLACEMENT = 1;
-	private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 1000;
+	private static int UPDATE_INTERVAL = 10000;
+	private static int FATEST_INTERVAL = 5000;
+	private static int DISPLACEMENT = 5;
+	private final static int PLAY_SERVICES_RESOLUTION_REQUEST = 2000;
 
 	private boolean mRequestingLocationUpdates = false;
 
@@ -129,11 +127,29 @@ public class MapActivity extends FragmentActivity
 		mapFragment.getMapAsync(this);
 
 		mHandler = new WeakHandler(this) {
+			
 			@Override
 			public void handleMessage(Message msg) {
-				getThingPlugDeviceContent();
+				if(isNetworkConnected()){
+					getThingPlugDeviceContent();
+					this.sendEmptyMessageDelayed(0, 5000);
+				}else{
+					this.sendEmptyMessageDelayed(0, 10000);
+				}
 			}
 		};
+	}
+	
+	private boolean isNetworkConnected() {
+		boolean result = false;
+		ConnectivityManager manager = (ConnectivityManager) getApplicationContext()
+				.getSystemService(Context.CONNECTIVITY_SERVICE);
+		final boolean isMobileConnected = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).isConnected();
+		final boolean isWifiConnected = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isConnected();
+
+		result = isMobileConnected | isWifiConnected;
+
+		return result;
 	}
 
 	@Override
@@ -193,6 +209,49 @@ public class MapActivity extends FragmentActivity
 		}
 	}
 
+	public void onClickSendButton(View v) {
+		Toast.makeText(this, "sending~~", Toast.LENGTH_SHORT).show();
+		Log.d("putTetst", mapDevice.getUrlGwDeviceReset(Request.Method.PUT).toString());
+		Volley.newRequestQueue(this).add(
+				new StringRequest(Request.Method.PUT, mapDevice.getUrlGwDeviceReset(Request.Method.PUT)
+						.toString(),
+						new Response.Listener<String>() {
+
+							@Override
+							public void onResponse(String response) {
+								try {
+									JSONObject jsonObject = XML.toJSONObject(response);
+									Log.d("putTetst", jsonObject.toString());
+
+								} catch (JSONException e) {
+									e.printStackTrace();
+									Toast.makeText(getApplicationContext(), e.toString(), Toast.LENGTH_SHORT)
+											.show();
+								}
+							}
+
+						}, new Response.ErrorListener() {
+
+							@Override
+							public void onErrorResponse(VolleyError error) {
+								Toast.makeText(getApplicationContext(), ":Error occured",
+										Toast.LENGTH_SHORT).show();
+							}
+						}) {
+
+					@Override
+					public Map<String, String> getHeaders() throws AuthFailureError {
+						Map<String, String> headers = new HashMap<String, String>();
+						headers.put("Content-Type", "application/xml");
+						headers.put("Authorization", THING_AUTHORIZATION);
+						headers.put("charset", "UTF-8");
+
+						return headers;
+					}
+				});
+
+	}
+
 	private void initDevice() {
 		MyThingPlugDevices myThingPlugDevices = MyThingPlugDevices.getInstance();
 
@@ -208,7 +267,7 @@ public class MapActivity extends FragmentActivity
 		THING_AUTHORIZATION = mapDevice.getAuthorization();
 		THING_REQ_URI = mapDevice.getUrlContenInstancesDetailed(0, 1).toString();
 
-		mLoRaGpsDevices = new ArrayList<MapActivity.LoRaGpsDevice>();
+		// mLoRaGpsDevices = new ArrayList<MapActivity.LoRaGpsDevice>();
 	}
 
 	/**
@@ -285,53 +344,38 @@ public class MapActivity extends FragmentActivity
 	private void updateDeviceLocation(JSONObject pJsonObject) {
 		JsonResponseContentInstanceDetailedLastOne response = toJsonResponse(pJsonObject);
 
-		long delayTime = 5010;
+//		long delayTime = 5010;
 
 		if (response.getCurrentNrOfInstances() == 0) {// No data
-			delayTime = 15000;
+//			delayTime = 15000;
 		} else {
 			if (checkDeviceLocation(response.getContentInstanceDetail()) == true) {
 				updateDeviceLocationMarker();
 			} else {
-				delayTime = 8000;
+//				delayTime = 8000;
 			}
 		}
 
-		mHandler.sendEmptyMessageDelayed(0, delayTime);
+//		mHandler.sendEmptyMessageDelayed(0, delayTime);
 	}
 
 	private void updateDeviceLocationMarker() {
-		if (mMarkerDeviceMax == null) {
-			mMarkerDeviceMax = mGoogleMap.addMarker(new MarkerOptions()
-					.position(mLoRaGpsMaxDistance.getLatLng())
-					.draggable(false)
-					.title(mLoRaGpsMaxDistance.getCreationDate().toString())
-					.snippet("Distance:" + String.valueOf(getDistanceFromGateway(mLoRaGpsMaxDistance)) + "m")
-					.icon(BitmapDescriptorFactory.fromResource(R.drawable.mk_red))
-					.flat(true));
-		} else {
-			mMarkerDeviceMax.setPosition(mLoRaGpsMaxDistance.getLatLng());
-			mMarkerDeviceMax.setTitle(mLoRaGpsMaxDistance.getCreationDate().toString());
-			mMarkerDeviceMax.setSnippet("Distance:"
-					+ String.valueOf(getDistanceFromGateway(mLoRaGpsMaxDistance)) + "m");
-		}
 
 		if (mMarkerDeviceNow == null) {
-			float distanceMeter = getDistanceFromGateway(mLoRaGpsNow);
+
 			mMarkerDeviceNow = mGoogleMap.addMarker(new MarkerOptions()
 					.position(mLoRaGpsNow.getLatLng())
 					.draggable(false)
 					.title(mLoRaGpsNow.getCreationDate().toString())
-					.snippet("Distance:" + String.valueOf(distanceMeter + "m"))
 					.icon(BitmapDescriptorFactory.fromResource(R.drawable.mk_circle))
 					.flat(true));
-			updateDistanceDisplay(distanceMeter);
+
 		} else {
 			mMarkerDeviceNow.setPosition(mLoRaGpsNow.getLatLng());
 			mMarkerDeviceNow.setTitle(mLoRaGpsNow.getCreationDate().toString());
-			mMarkerDeviceNow
-					.setSnippet("Distance:" + String.valueOf(getDistanceFromGateway(mLoRaGpsNow)) + "m");
 		}
+
+		mMarkerDeviceNow.setSnippet(updateDistanceDisplay(getDistanceFromGateway(mLoRaGpsNow)));
 	}
 
 	private boolean checkDeviceLocation(JsonContentInstanceDetail pJsonContentInstanceDetail) {
@@ -351,22 +395,19 @@ public class MapActivity extends FragmentActivity
 				longitude = Double
 						.valueOf(geoString[1].replace(doublePtnString, ""));
 
-				mLoRaGpsNow = new LoRaGpsDevice("LoRa GPS divice")
-						.setLatLng(new LatLng(latitude, longitude))
-						.setCreationDate(creationDate);
-
-				if (mLoRaGpsMaxDistance == null) {
-					mLoRaGpsMaxDistance = mLoRaGpsNow.clone();
-					updateMaxDistanceCircle();
+				if (mLoRaGpsNow == null) {
+					mLoRaGpsNow = new LoRaGpsDevice("LoRa GPS divice")
+							.setLatLng(new LatLng(latitude, longitude))
+							.setCreationDate(creationDate);
+					updateBetweenCircleRange();
 				} else {
-					if (getDistanceFromGateway(mLoRaGpsNow) > getDistanceFromGateway(mLoRaGpsMaxDistance)) {
-						mLoRaGpsMaxDistance = mLoRaGpsNow.clone();
-						updateMaxDistanceCircle();
+					if (creationDate.after(mLoRaGpsNow.getCreationDate())) {
+						mLoRaGpsNow
+								.setLatLng(new LatLng(latitude, longitude))
+								.setCreationDate(creationDate);
+						updateBetweenCircleRange();
 					}
 				}
-
-				this.mTvMapDebug.setText("max:" + getDistanceFromGateway(mLoRaGpsMaxDistance) + "m,now:"
-						+ getDistanceFromGateway(mLoRaGpsNow) + "m");
 
 			} catch (Exception e) {
 				result = false;
@@ -377,24 +418,25 @@ public class MapActivity extends FragmentActivity
 		return result;
 	}
 
-	private void updateMaxDistanceCircle() {
-		if (mCircleMaxDistanceRange == null) {
-			mCircleMaxDistanceRange = mGoogleMap
+	private void updateBetweenCircleRange() {
+		if (mCircleNowDistanceRange == null) {
+			mCircleNowDistanceRange = mGoogleMap
 					.addCircle(new CircleOptions()
 							.center(mGatewayLatLng)
-							.radius((double) getDistanceFromGateway(mLoRaGpsMaxDistance))
+							.radius((double) getDistanceFromGateway(mLoRaGpsNow))
 							.fillColor(0x2c5a7fb1)
 							.strokeWidth(0));
 		} else {
-			mCircleMaxDistanceRange.setRadius((double) getDistanceFromGateway(mLoRaGpsMaxDistance));
+			mCircleNowDistanceRange.setRadius((double) getDistanceFromGateway(mLoRaGpsNow));
+			mCircleNowDistanceRange.setCenter(mGatewayLatLng);
 		}
 
 		updateCameraBounds();
 	}
 
 	private void updateCameraBounds() {
-		double diffLat = mGatewayLatLng.latitude - mLoRaGpsMaxDistance.getLatLng().latitude;
-		double diffLng = mGatewayLatLng.longitude - mLoRaGpsMaxDistance.getLatLng().longitude;
+		double diffLat = mGatewayLatLng.latitude - mLoRaGpsNow.getLatLng().latitude;
+		double diffLng = mGatewayLatLng.longitude - mLoRaGpsNow.getLatLng().longitude;
 		double d = Math.sqrt(Math.pow(diffLat, 2) + Math.pow(diffLng, 2));
 
 		double northEastLat = mGatewayLatLng.latitude + d;
@@ -420,16 +462,20 @@ public class MapActivity extends FragmentActivity
 		return resultMeter;
 	}
 
-	private void updateDistanceDisplay(float pResultMeter) {
+	private String updateDistanceDisplay(float pResultMeter) {
 		String pDistanceStr = "";
-		if (pResultMeter < 1000) {// display by unit m
+		if (pResultMeter < 5) {
+			pDistanceStr = "Nearby ";
+		} else if (pResultMeter < 1000) {// display by unit m
 			pDistanceStr = String.valueOf(pResultMeter) + "m";
+			pDistanceStr = String.format("%.2f", pResultMeter) + "m";
 		} else {// display by unit km
 			pDistanceStr = String.format("%.2f", pResultMeter / 1000.0f) + "km";
 		}
 		mTvDistance.setText(String.valueOf(pDistanceStr));
-	}
 
+		return pDistanceStr;
+	}
 
 	private synchronized void getThingPlugDeviceContent() {
 		if (mapDevice == null) {
@@ -499,20 +545,19 @@ public class MapActivity extends FragmentActivity
 
 		mGatewayLatLng = new LatLng(mGatewayLocation.getLatitude(), mGatewayLocation.getLongitude());
 
-//		mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mGatewayLatLng, 17));
-		if(mGatewayMarker!=null){
+		// mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mGatewayLatLng,
+		// 17));
+		if (mGatewayMarker != null) {
 			mGatewayMarker.setPosition(mGatewayLatLng);
 			mGatewayMarker.setSnippet(mGatewayLatLng.toString());
 		}
 
 		if (mLoRaGpsNow != null) {
 			updateDistanceDisplay(getDistanceFromGateway(mLoRaGpsNow));
-			updateMaxDistanceCircle();
+			updateBetweenCircleRange();
 		}
 
 	}
-	
-	
 
 	@Override
 	public void onMapReady(GoogleMap pGoogleMap) {
