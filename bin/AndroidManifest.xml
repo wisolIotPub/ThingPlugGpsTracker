@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="wisol.demo.loragpstracker"
-    android:versionCode="1"
-    android:versionName="1.0" >
+    android:versionCode="2"
+    android:versionName="1.2" >
 
     <uses-sdk
         android:minSdkVersion="18"
@@ -21,8 +21,8 @@
     <application
         android:name=".MyApplication"
         android:allowBackup="true"
-        android:icon="@drawable/ic_launcher"
-        android:label="@string/app_name"
+        android:icon="@drawable/ic_multimap"
+        android:label="@string/app_mname"
         android:theme="@style/AppTheme" >
         <service
             android:name=".TestService"
@@ -74,14 +74,22 @@
             android:label="@string/title_activity_firebase_test" >
         </activity>
         <activity
-            android:name="wisol.demo.loragpstracker.activity.GpsMainActivity"
+            android:name=".activity.GpsMainActivity"
             android:label="@string/title_activity_gps_main" >
+        </activity>
+        <activity
+            android:name=".activity.MultiTrackerListActivity"
+            android:label="@string/title_activity_multi_tracker_list" >
+        </activity>
+        <activity
+            android:name="wisol.demo.loragpstracker.activity.MultiMapActivity"
+            android:label="@string/title_activity_multi_map" >
         </activity>
     </application>
 
     <!--
      To retrieve OAuth 2.0 tokens or invalidate tokens to disconnect a user. This disconnect
-     option is required to comply with the Google+ Sign-In developer policies
+     option is required to comply with the Google+ Sign-In developer policies
     -->
 
 

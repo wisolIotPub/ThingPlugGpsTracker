@@ -37,45 +37,88 @@
             android:onClick="onClickMark"
             android:src="@drawable/mark_uarat" />
 
-        <TextView
-            android:id="@+id/gpsmain_youareat"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:layout_weight="1"
-            android:text="You are at"
-            android:textColor="#ffffff"
-            android:textSize="25dp"
-            android:textStyle="bold" />
+            android:layout_weight="2" >
+
+            <ImageView
+                android:id="@+id/phoneActive"
+                android:layout_width="25sp"
+                android:layout_height="25sp"
+                android:layout_marginLeft="5sp"
+                android:layout_gravity="center_vertical|left"
+                android:src="@drawable/unchecked_circle" />
+
+            <TextView
+                android:id="@+id/gpsmain_youareat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10sp"
+                android:layout_gravity="center_vertical|left"
+                android:text="Your location is"
+                android:textColor="#ffffff"
+                android:textSize="25dp"
+                android:textStyle="bold" />
+        </LinearLayout>
 
         <TextView
             android:id="@+id/gpsmain_youareatplace"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical|left"
+            android:layout_marginLeft="40sp"
+            android:layout_weight="1"
+            android:text="location address"
+            android:textColor="#ffffff"
+            android:textSize="20dp" />
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:layout_weight="2" >
+
+            <ImageView
+                android:id="@+id/gpsActive"
+                android:layout_width="25sp"
+                android:layout_height="25sp"
+                android:layout_gravity="center_vertical|left"
+                android:layout_marginLeft="5sp"
+                android:src="@drawable/unchecked_circle" />
+
+            <TextView
+                android:id="@+id/gpsmain_gpsisat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10sp"
+                android:layout_gravity="center_vertical|left"
+                android:text="Gps tag is"
+                android:textColor="#ffffff"
+                android:textSize="25dp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/gpsmain_gpsisatplace"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical|left"
+            android:layout_marginLeft="40sp"
             android:layout_weight="1"
             android:text="location address"
             android:textColor="#ffffff"
             android:textSize="20dp" />
 
         <TextView
-            android:id="@+id/gpsmain_gpsisat"
+            android:id="@+id/gpsmain_gpsattime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
+            android:layout_gravity="center_vertical|left"
+            android:layout_marginLeft="40sp"
             android:layout_weight="1"
-            android:text="GPS device is at"
-            android:textColor="#ffffff"
-            android:textSize="25dp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/gpsmain_gpsisatplace"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_weight="1"
-            android:text="location address"
+            android:text="--:--:--"
             android:textColor="#ffffff"
             android:textSize="20dp" />
     </LinearLayout>
@@ -110,7 +153,8 @@
             android:clickable="true"
             android:onClick="onClickMenuConfig"
             android:src="@drawable/btn_config" />
-        <Space
+
+        <Space
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="1" />

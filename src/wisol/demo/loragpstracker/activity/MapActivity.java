@@ -5,6 +5,8 @@ import java.lang.reflect.Type;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -33,6 +35,7 @@ import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
+import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
@@ -65,6 +68,8 @@ public class MapActivity extends FragmentActivity
 	final String EXTRA_GPS_UPDATE = "GPS_UPDATE";
 	final String EXTRA_LATITUDE = "LATITUDE";
 	final String EXTRA_LONGITUDE = "LONGITUDE";
+
+	final String DELIMITER = ",";
 
 	TextView mTvMapDebug;
 	TextView mTvDistance;
@@ -99,6 +104,11 @@ public class MapActivity extends FragmentActivity
 
 	private boolean mRequestingLocationUpdates = false;
 
+	private final long REQ_FAST = 1000;
+	private final long REQ_NORMAL = 3000;
+	final MyDevices mCheckDevice = MyDevices.GPS01C;//MyDevices.MAP;//MyDevices.GPS02;
+	RequestQueue mRequestQueue;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -109,7 +119,7 @@ public class MapActivity extends FragmentActivity
 		mTvDistance = (TextView) findViewById(R.id.map_distancetext);
 
 		getExtra(savedInstanceState);
-		initDevice();
+		initDevice(mCheckDevice);
 
 		if (checkPlayServices()) {
 			buildGoogleApiClient();
@@ -127,19 +137,20 @@ public class MapActivity extends FragmentActivity
 		mapFragment.getMapAsync(this);
 
 		mHandler = new WeakHandler(this) {
-			
+
 			@Override
 			public void handleMessage(Message msg) {
-				if(isNetworkConnected()){
+				Log.v("handlerCheck", "mapin");
+				if (isNetworkConnected()) {
 					getThingPlugDeviceContent();
-					this.sendEmptyMessageDelayed(0, 5000);
-				}else{
-					this.sendEmptyMessageDelayed(0, 10000);
+					this.sendEmptyMessageDelayed(0, REQ_NORMAL);
+				} else {
+					this.sendEmptyMessageDelayed(0, REQ_NORMAL * 2);
 				}
 			}
 		};
 	}
-	
+
 	private boolean isNetworkConnected() {
 		boolean result = false;
 		ConnectivityManager manager = (ConnectivityManager) getApplicationContext()
@@ -185,7 +196,8 @@ public class MapActivity extends FragmentActivity
 	protected void onPause() {
 		// TODO Auto-generated method stub
 		stopLocationUpdates();
-		launchTestService();
+		mHandler.removeMessages(0);
+//		launchTestService();
 		isActivated = false;
 		super.onPause();
 	}
@@ -210,9 +222,13 @@ public class MapActivity extends FragmentActivity
 	}
 
 	public void onClickSendButton(View v) {
-		Toast.makeText(this, "sending~~", Toast.LENGTH_SHORT).show();
+		Toast.makeText(this, "This function is not supported yet", Toast.LENGTH_SHORT).show();
 		Log.d("putTetst", mapDevice.getUrlGwDeviceReset(Request.Method.PUT).toString());
-		Volley.newRequestQueue(this).add(
+		if (mRequestQueue == null) {
+			mRequestQueue = Volley.newRequestQueue(this);
+		}
+
+		mRequestQueue.add(
 				new StringRequest(Request.Method.PUT, mapDevice.getUrlGwDeviceReset(Request.Method.PUT)
 						.toString(),
 						new Response.Listener<String>() {
@@ -252,22 +268,64 @@ public class MapActivity extends FragmentActivity
 
 	}
 
-	private void initDevice() {
+	public void onClickGpsFocusButton(View v) {
+		try {
+			updateCameraBounds(CameraBoundOption.GPS_ONLY);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+	}
+
+	public void onClickPhoneFocusButton(View v) {
+		try {
+			updateCameraBounds(CameraBoundOption.PHONE_ONLY);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void onClickBetweenFocusButton(View v) {
+		try {
+			updateCameraBounds(CameraBoundOption.GPS_PHONE);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	// private void initDevice() {
+	// MyThingPlugDevices myThingPlugDevices = MyThingPlugDevices.getInstance();
+	//
+	// mapDevice = new ThingPlugDevice(
+	// myThingPlugDevices.getServiceName(MyDevices.GPS02),
+	// myThingPlugDevices.getSclId(MyDevices.GPS02),
+	// myThingPlugDevices.getDeviceId(MyDevices.GPS02),
+	// myThingPlugDevices.getAuthId(MyDevices.GPS02),
+	// myThingPlugDevices.getAuthKey(MyDevices.GPS02))
+	// .setTag("RoLa GPS")
+	// .registerDevice(true);
+	//
+	// THING_AUTHORIZATION = mapDevice.getAuthorization();
+	// THING_REQ_URI = mapDevice.getUrlContenInstancesDetailed(0, 1).toString();
+	//
+	// // mLoRaGpsDevices = new ArrayList<MapActivity.LoRaGpsDevice>();
+	// }
+
+	private void initDevice(MyDevices pDevice) {
 		MyThingPlugDevices myThingPlugDevices = MyThingPlugDevices.getInstance();
 
 		mapDevice = new ThingPlugDevice(
-				myThingPlugDevices.getServiceName(MyDevices.MAP),
-				myThingPlugDevices.getSclId(MyDevices.MAP),
-				myThingPlugDevices.getDeviceId(MyDevices.MAP),
-				myThingPlugDevices.getAuthId(MyDevices.MAP),
-				myThingPlugDevices.getAuthKey(MyDevices.MAP))
+				myThingPlugDevices.getServiceName(pDevice),
+				myThingPlugDevices.getSclId(pDevice),
+				myThingPlugDevices.getDeviceId(pDevice),
+				myThingPlugDevices.getAuthId(pDevice),
+				myThingPlugDevices.getAuthKey(pDevice))
 				.setTag("RoLa GPS")
 				.registerDevice(true);
 
 		THING_AUTHORIZATION = mapDevice.getAuthorization();
 		THING_REQ_URI = mapDevice.getUrlContenInstancesDetailed(0, 1).toString();
 
-		// mLoRaGpsDevices = new ArrayList<MapActivity.LoRaGpsDevice>();
 	}
 
 	/**
@@ -344,19 +402,19 @@ public class MapActivity extends FragmentActivity
 	private void updateDeviceLocation(JSONObject pJsonObject) {
 		JsonResponseContentInstanceDetailedLastOne response = toJsonResponse(pJsonObject);
 
-//		long delayTime = 5010;
+		// long delayTime = 5010;
 
 		if (response.getCurrentNrOfInstances() == 0) {// No data
-//			delayTime = 15000;
+			// delayTime = 15000;
 		} else {
 			if (checkDeviceLocation(response.getContentInstanceDetail()) == true) {
 				updateDeviceLocationMarker();
 			} else {
-//				delayTime = 8000;
+				// delayTime = 8000;
 			}
 		}
 
-//		mHandler.sendEmptyMessageDelayed(0, delayTime);
+		// mHandler.sendEmptyMessageDelayed(0, delayTime);
 	}
 
 	private void updateDeviceLocationMarker() {
@@ -382,7 +440,7 @@ public class MapActivity extends FragmentActivity
 		boolean result = false;
 		double latitude = 0, longitude = 0;
 
-		String[] geoString = pJsonContentInstanceDetail.getContent().split("@");
+		String[] geoString = pJsonContentInstanceDetail.getContent().split(DELIMITER);
 		Date creationDate = pJsonContentInstanceDetail.getCreationTime();
 
 		if ((geoString.length == 2) && (creationDate != null)) {
@@ -399,13 +457,13 @@ public class MapActivity extends FragmentActivity
 					mLoRaGpsNow = new LoRaGpsDevice("LoRa GPS divice")
 							.setLatLng(new LatLng(latitude, longitude))
 							.setCreationDate(creationDate);
-					updateBetweenCircleRange();
+					updateBetweenCircleRange(CameraBoundOption.GPS_PHONE);
 				} else {
 					if (creationDate.after(mLoRaGpsNow.getCreationDate())) {
 						mLoRaGpsNow
 								.setLatLng(new LatLng(latitude, longitude))
 								.setCreationDate(creationDate);
-						updateBetweenCircleRange();
+						updateBetweenCircleRange(CameraBoundOption.NONE);
 					}
 				}
 
@@ -418,7 +476,7 @@ public class MapActivity extends FragmentActivity
 		return result;
 	}
 
-	private void updateBetweenCircleRange() {
+	private void updateBetweenCircleRange(CameraBoundOption pOption) {
 		if (mCircleNowDistanceRange == null) {
 			mCircleNowDistanceRange = mGoogleMap
 					.addCircle(new CircleOptions()
@@ -431,22 +489,36 @@ public class MapActivity extends FragmentActivity
 			mCircleNowDistanceRange.setCenter(mGatewayLatLng);
 		}
 
-		updateCameraBounds();
+		updateCameraBounds(pOption);
 	}
 
-	private void updateCameraBounds() {
-		double diffLat = mGatewayLatLng.latitude - mLoRaGpsNow.getLatLng().latitude;
-		double diffLng = mGatewayLatLng.longitude - mLoRaGpsNow.getLatLng().longitude;
-		double d = Math.sqrt(Math.pow(diffLat, 2) + Math.pow(diffLng, 2));
+	private void updateCameraBounds(CameraBoundOption pOption) {
+		switch (pOption) {
+		case GPS_PHONE:
+			double diffLat = mGatewayLatLng.latitude - mLoRaGpsNow.getLatLng().latitude;
+			double diffLng = mGatewayLatLng.longitude - mLoRaGpsNow.getLatLng().longitude;
+			double d = Math.sqrt(Math.pow(diffLat, 2) + Math.pow(diffLng, 2));
 
-		double northEastLat = mGatewayLatLng.latitude + d;
-		double northEastLng = mGatewayLatLng.longitude + d;
-		double southWestLat = mGatewayLatLng.latitude - d;
-		double southWestLng = mGatewayLatLng.longitude - d;
+			double northEastLat = mGatewayLatLng.latitude + d;
+			double northEastLng = mGatewayLatLng.longitude + d;
+			double southWestLat = mGatewayLatLng.latitude - d;
+			double southWestLng = mGatewayLatLng.longitude - d;
 
-		LatLngBounds pBounds = new LatLngBounds(new LatLng(southWestLat, southWestLng), new LatLng(
-				northEastLat, northEastLng));
-		mGoogleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(pBounds, 100), 1000, null);
+			LatLngBounds pBounds = new LatLngBounds(new LatLng(southWestLat, southWestLng), new LatLng(
+					northEastLat, northEastLng));
+			mGoogleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(pBounds, 100), 1000, null);
+			break;
+
+		case GPS_ONLY:
+			mGoogleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mLoRaGpsNow.getLatLng(), 17));
+			break;
+		case PHONE_ONLY:
+			mGoogleMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mGatewayLatLng, 17));
+			break;
+		default:
+
+			break;
+		}
 
 	}
 
@@ -479,7 +551,7 @@ public class MapActivity extends FragmentActivity
 
 	private synchronized void getThingPlugDeviceContent() {
 		if (mapDevice == null) {
-			initDevice();
+			initDevice(mCheckDevice);
 		}
 
 		if (isActivated == false) {
@@ -487,7 +559,11 @@ public class MapActivity extends FragmentActivity
 			return;
 		}
 
-		Volley.newRequestQueue(this).add(
+		if (mRequestQueue == null) {
+			mRequestQueue = Volley.newRequestQueue(this);
+		}
+
+		mRequestQueue.add(
 				new StringRequest(Request.Method.GET, THING_REQ_URI, new Response.Listener<String>() {
 
 					@Override
@@ -498,7 +574,9 @@ public class MapActivity extends FragmentActivity
 							updateDeviceLocation(jsonObject);
 						} catch (JSONException e) {
 							e.printStackTrace();
-							Toast.makeText(getApplicationContext(), e.toString(), Toast.LENGTH_SHORT).show();
+							// Toast.makeText(getApplicationContext(),
+							// e.toString(), Toast.LENGTH_SHORT)
+							// .show();
 						}
 					}
 
@@ -506,8 +584,9 @@ public class MapActivity extends FragmentActivity
 
 					@Override
 					public void onErrorResponse(VolleyError error) {
-						Toast.makeText(getApplicationContext(), ":Error occured",
-								Toast.LENGTH_SHORT).show();
+						// Toast.makeText(getApplicationContext(),
+						// ":Error occured",
+						// Toast.LENGTH_SHORT).show();
 					}
 				}) {
 
@@ -539,7 +618,7 @@ public class MapActivity extends FragmentActivity
 		}
 	}
 
-	private void upDateGpsLocation() {
+	private void upDateGpsLocation(CameraBoundOption pOption) {
 		mGatewayLocation = LocationServices.FusedLocationApi
 				.getLastLocation(mGoogleApiClient);
 
@@ -554,7 +633,11 @@ public class MapActivity extends FragmentActivity
 
 		if (mLoRaGpsNow != null) {
 			updateDistanceDisplay(getDistanceFromGateway(mLoRaGpsNow));
-			updateBetweenCircleRange();
+			if (mMarkerDeviceNow != null) {
+				mMarkerDeviceNow.setSnippet(updateDistanceDisplay(getDistanceFromGateway(mLoRaGpsNow)));
+			}
+
+			updateBetweenCircleRange(pOption);
 		}
 
 	}
@@ -573,16 +656,18 @@ public class MapActivity extends FragmentActivity
 				.icon(BitmapDescriptorFactory.fromResource(R.drawable.mk_blue))
 				.flat(true));
 
-		mHandler.sendEmptyMessageDelayed(0, 10);
 	}
 
 	@Override
 	public void onConnected(Bundle pBundle) {
 		Toast.makeText(this, "onConnected", Toast.LENGTH_SHORT).show();
-		upDateGpsLocation();
+
+		upDateGpsLocation(CameraBoundOption.GPS_PHONE);
+
 		if (mRequestingLocationUpdates) {
 			startLocationUpdates();
 		}
+		mHandler.sendEmptyMessageDelayed(0, 15);
 	}
 
 	@Override
@@ -647,8 +732,12 @@ public class MapActivity extends FragmentActivity
 	@Override
 	public void onLocationChanged(Location arg0) {
 		// TODO Auto-generated method stub
-		upDateGpsLocation();
+		upDateGpsLocation(CameraBoundOption.NONE);
 
+	}
+
+	private enum CameraBoundOption {
+		NONE, GPS_ONLY, PHONE_ONLY, GPS_PHONE
 	}
 
 }

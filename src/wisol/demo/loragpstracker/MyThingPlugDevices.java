@@ -76,6 +76,64 @@ public class MyThingPlugDevices {
 		}
 	};
 
+	Map<String, String> deviceInfoGps02 = new HashMap<String, String>() {
+		{
+			put(serviceNameKey, "ThingPlug");
+			put(sclIdKey, "SC10014121");
+			put(deviceIdKey, "AD10015974");
+			put(authIdKey, "AP10005666");
+			put(authKeyKey, "AK10000176");
+		}
+	};
+	Map<String, String> deviceInfoDoor01b = new HashMap<String, String>() {
+		{
+			put(serviceNameKey, "ThingPlug");
+			put(sclIdKey, "SC10014122");
+			put(deviceIdKey, "AD10015976");
+			put(authIdKey, "AP10005666");
+			put(authKeyKey, "AK10000176");
+		}
+	};
+	Map<String, String> deviceInfoDoor02b = new HashMap<String, String>() {
+		{
+			put(serviceNameKey, "ThingPlug");
+			put(sclIdKey, "SC10014123");
+			put(deviceIdKey, "AD10015975");
+			put(authIdKey, "AP10005666");
+			put(authKeyKey, "AK10000176");
+		}
+	};
+
+	Map<String, String> deviceInfoGps01c = new HashMap<String, String>() {
+		{
+			put(serviceNameKey, "ThingPlug");
+			put(sclIdKey, "SC10016113");
+			put(deviceIdKey, "AD10016642");
+			put(authIdKey, "AP10005666");
+			put(authKeyKey, "AK10000176");
+		}
+	};
+
+	Map<String, String> deviceInfoDoor01c = new HashMap<String, String>() {
+		{
+			put(serviceNameKey, "ThingPlug");
+			put(sclIdKey, "SC10016111");
+			put(deviceIdKey, "AD10016640");
+			put(authIdKey, "AP10005666");
+			put(authKeyKey, "AK10000176");
+		}
+	};
+
+	Map<String, String> deviceInfoDoor02c = new HashMap<String, String>() {
+		{
+			put(serviceNameKey, "ThingPlug");
+			put(sclIdKey, "SC10016112");
+			put(deviceIdKey, "AD10016641");
+			put(authIdKey, "AP10005666");
+			put(authKeyKey, "AK10000176");
+		}
+	};
+
 	public static synchronized MyThingPlugDevices getInstance() {
 		if (instance == null) {
 			instance = new MyThingPlugDevices();
@@ -114,7 +172,7 @@ public class MyThingPlugDevices {
 			break;
 		case MESSAGE:
 			result.putAll(this.deviceInfoMsg);
-			break;	
+			break;
 		case DOOR1:
 			result.putAll(this.deviceInfoDoor1);
 			break;
@@ -126,6 +184,25 @@ public class MyThingPlugDevices {
 			break;
 		case MAP:
 			result.putAll(this.deviceInfoMap);
+			break;
+		case GPS02:
+			result.putAll(this.deviceInfoGps02);
+			break;
+		case DOOR01B:
+			result.putAll(this.deviceInfoDoor01b);
+			break;
+		case DOOR02B:
+			result.putAll(this.deviceInfoDoor02b);
+			break;
+
+		case GPS01C:
+			result.putAll(this.deviceInfoGps01c);
+			break;
+		case DOOR01C:
+			result.putAll(this.deviceInfoDoor01c);
+			break;
+		case DOOR02C:
+			result.putAll(this.deviceInfoDoor02c);
 			break;
 		default:
 			result.putAll(this.deviceInfoMsg);
@@ -145,7 +222,8 @@ public class MyThingPlugDevices {
 	}
 
 	public enum MyDevices {
-		DEFAULT, MESSAGE, DOOR1, DOOR2, DOOR3, MAP, GATEWAY;
+		DEFAULT, MESSAGE, DOOR1, DOOR2, DOOR3, MAP, GATEWAY, GPS02, DOOR01B, DOOR02B,
+		GPS01C, DOOR01C, DOOR02C// °í½Ã´Ù;
 
 	}
 

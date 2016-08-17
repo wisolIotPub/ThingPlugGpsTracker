@@ -1,7 +1,6 @@
 package wisol.demo.loragpstracker;
 
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -11,12 +10,8 @@ import org.json.JSONObject;
 import org.json.XML;
 
 import wisol.demo.loragpstracker.MyThingPlugDevices.MyDevices;
-import wisol.demo.loragpstracker.activity.DoorViewActivity;
 import wisol.demo.loragpstracker.activity.GpsMainActivity;
 import wisol.demo.loragpstracker.activity.MainActivity;
-import wisol.demo.loragpstracker.activity.MenuActivity;
-import wisol.demo.loragpstracker.activity.MessageViewActivity;
-import wisol.demo.loragpstracker.activity.SelGatewayActivity;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -33,12 +28,12 @@ import android.os.Looper;
 import android.os.Message;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.TaskStackBuilder;
-import android.text.format.Time;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
+import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
@@ -57,6 +52,10 @@ public class TestService extends Service {
 	int mNewDataCount = 0;
 	String preUpdatedDeviceName = "";
 
+	RequestQueue mRequestQueue;
+	
+	final MyDevices mCheckDevice = MyDevices.GPS01C;
+
 	private final class ServiceHandler extends Handler {
 		public ServiceHandler(Looper looper) {
 			super(looper);
@@ -64,21 +63,21 @@ public class TestService extends Service {
 
 		@Override
 		public void handleMessage(Message msg) {
-			if (isNetworkConnected()) {
+			if (isNetworkAvailable()) {
 				checkNewData(mapDevice);
 				this.sendEmptyMessageDelayed(0, 10000);
-			}else{
-				this.sendEmptyMessageDelayed(0, 20000);
+			} else {
+				this.sendEmptyMessageDelayed(0, 25000);
 			}
 		}
 	}
 
-	private boolean isNetworkConnected() {
+	private boolean isNetworkAvailable() {
 		boolean result = false;
 		ConnectivityManager manager = (ConnectivityManager) getApplicationContext()
 				.getSystemService(Context.CONNECTIVITY_SERVICE);
-		final boolean isMobileConnected = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).isConnected();
-		final boolean isWifiConnected = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isConnected();
+		final boolean isMobileConnected = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).isAvailable();
+		final boolean isWifiConnected = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).isAvailable();
 
 		result = isMobileConnected | isWifiConnected;
 
@@ -126,7 +125,11 @@ public class TestService extends Service {
 	synchronized private void checkNewData(ThingPlugDevice pThingPlugDevice) {
 		final ThingPlugDevice thingPlugDevice = pThingPlugDevice;
 
-		Volley.newRequestQueue(getApplicationContext()).add(
+		if (mRequestQueue == null) {
+			mRequestQueue = Volley.newRequestQueue(this);
+		}
+
+		mRequestQueue.add(
 				new StringRequest(Request.Method.GET, thingPlugDevice.getUrlContenInstancesDetailed(0, 1)
 						.toString(), new Response.Listener<String>() {
 
@@ -138,8 +141,9 @@ public class TestService extends Service {
 							checkNewDataUpdate(jsonObject, thingPlugDevice.getTag());
 						} catch (JSONException e) {
 							e.printStackTrace();
-							Toast.makeText(getApplicationContext(), e.toString(), Toast.LENGTH_SHORT)
-									.show();
+							// Toast.makeText(getApplicationContext(),
+							// e.toString(), Toast.LENGTH_SHORT)
+							// .show();
 						}
 					}
 
@@ -147,8 +151,9 @@ public class TestService extends Service {
 
 					@Override
 					public void onErrorResponse(VolleyError error) {
-//						Toast.makeText(getApplicationContext(), ":Error occured",
-//								Toast.LENGTH_SHORT).show();
+						// Toast.makeText(getApplicationContext(),
+						// ":Error occured",
+						// Toast.LENGTH_SHORT).show();
 					}
 				}) {
 
@@ -168,7 +173,7 @@ public class TestService extends Service {
 	public void onCreate() {
 		// TODO Auto-generated method stub
 		super.onCreate();
-		mHandlerThread = new HandlerThread("TestService.HandlerThread");
+		mHandlerThread = new HandlerThread("wisol.demo.loragpstracker.service");
 		mHandlerThread.start();
 
 		mServiceHandler = new ServiceHandler(mHandlerThread.getLooper());
@@ -183,18 +188,18 @@ public class TestService extends Service {
 		// mPreCreationDateMap = new HashMap<String, Date>();
 
 		mapDevice = new ThingPlugDevice(
-				myThingPlugDevices.getServiceName(MyDevices.MAP),
-				myThingPlugDevices.getSclId(MyDevices.MAP),
-				myThingPlugDevices.getDeviceId(MyDevices.MAP),
-				myThingPlugDevices.getAuthId(MyDevices.MAP),
-				myThingPlugDevices.getAuthKey(MyDevices.MAP))
+				myThingPlugDevices.getServiceName(mCheckDevice),
+				myThingPlugDevices.getSclId(mCheckDevice),
+				myThingPlugDevices.getDeviceId(mCheckDevice),
+				myThingPlugDevices.getAuthId(mCheckDevice),
+				myThingPlugDevices.getAuthKey(mCheckDevice))
 				.setTag("MAP")
 				.registerDevice(true);
 	}
 
 	private void initNotification(JsonContentInstanceDetail pJsonContentInstanceDetail) {
 
-		String pTitle = "WISOL RoLa GPS Tracker";
+		String pTitle = "WISOL GPS Tracker";
 		String pContentText = "";
 		Intent resultIntent = new Intent(getApplicationContext(), GpsMainActivity.class);
 		pContentText = "Location is updated@" + pJsonContentInstanceDetail.getCreationTimeString();
